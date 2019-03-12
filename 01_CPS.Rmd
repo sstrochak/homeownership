@@ -29,15 +29,135 @@ knitr::opts_chunk$set(message = FALSE)
 options(scipen = 999)
 
 library(tidyverse)
+library(readxl)
 ```
 
 
 # Measuring homeownership with the CPS
 
+## Set up
+
+Load libraries
+
+```{r lib}
+library(tidyverse)
+library(readxl)
+```
+
+Create directories for data.
+```{r data}
+if (!dir.exists("data")) {
+  dir.create("data")
+}
+
+```
+
 ## Download the data 
 
-```{r download}
+We will use two tables for this:
 
+1. Table 14: Quarterly Homeownership Rates for the U.S. and Regions: 1964 to Present
+
+2. Table B-5. Margins of Error of Homeownership Rates for the United States
+
+
+```{r download}
+if (!file.exists("data/histtab14.xlsx")) {
+  
+  download.file(url = "https://www.census.gov/housing/hvs/data/histtab14.xlsx",
+                destfile = "data/histtab14.xlsx",
+                mode="wb")
+  
+}
+
+if (!file.exists("data/B5.xlsx")) {
+  
+  download.file(url = "https://www.census.gov/housing/hvs/data/B5.xlsx",
+                destfile = "data/B5.xlsx",
+                mode="wb")
+  
+}
 
 
 ```
+
+## Read and clean
+
+### Homeownership rate
+
+First, read in and clean up the homeownership rate data.
+
+```{r horead}
+
+rate <- read_excel("data/histtab14.xlsx",
+                   skip = 3)
+
+# Get rid of rows of footnotes
+rate <- rate %>% 
+  head(-6)
+
+```
+
+The year and region variables share a column. Extract the year bu coercing a new year variable into an integer (this will drop the region names), and fill each region with the correct year.
+
+```{r fill-year}
+
+rate1 <- rate %>% 
+  mutate(year = as.integer(`Year and Area`)) %>% 
+  filter(!is.na(`Year and Area`)) %>% 
+  fill(year, .direction = "down") %>% 
+  filter(str_detect(`Year and Area`, "[:digit:]") == FALSE) 
+
+```
+
+There are three years that have revisions, so they are duplicated. Get only the revised estimates- these are listed after the unrevised estimates. Get the second set of estimates, and merge them back onto the master data. 
+
+```{r ho-revise}
+
+# Get only second set
+rev <- rate1 %>% 
+  group_by(year) %>% 
+  filter(n() > 5) %>% 
+  mutate(num = row_number()) %>% 
+  filter(num %in% 6:10) %>% 
+  select(-num)
+
+rate2 <- rate1 %>% 
+  filter(!year %in% unique(rev$year)) %>% 
+  bind_rows(rev)
+
+stopifnot(
+  rate2 %>% group_by(year) %>% filter(n() > 5) %>% nrow() == 0
+)
+
+rm(rev)
+
+```
+
+Fix the region names.
+
+```{r ho-regnames}
+names(rate2) <- c("region", "Q1", "Q2", "Q3", "Q4", "year")
+
+rate3 <- rate2 %>% 
+  mutate(region = str_remove_all(region, "[:punct:]"))
+
+
+```
+
+Reshape and format a date variables.
+
+```{r ho-reshape}
+
+rate4 <- rate3 %>% 
+  gather(key = "quarter", value = "horate", -region, -year) %>% 
+  arrange(region, year, quarter) %>% 
+  mutate(period = paste0(year, quarter))
+
+```
+
+### Margin of error
+
+
+### Combine
+

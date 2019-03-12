@@ -184,7 +184,7 @@ $(document).ready(function () {
 </style>
 <script>
 $(document).ready(function () {
-  window.initializeCodeFolding("hide" === "show");
+  window.initializeCodeFolding("show" === "show");
 });
 </script>
 
@@ -310,11 +310,95 @@ div.tocify {
 </div>
 <pre class="r"><code>options(scipen = 999)
 
-library(tidyverse)</code></pre>
+library(tidyverse)
+library(readxl)</code></pre>
 <div id="measuring-homeownership-with-the-cps" class="section level1">
 <h1>Measuring homeownership with the CPS</h1>
+<div id="set-up" class="section level2">
+<h2>Set up</h2>
+<p>Load libraries</p>
+<pre class="r"><code>library(tidyverse)
+library(readxl)</code></pre>
+<p>Create directories for data.</p>
+<pre class="r"><code>if (!dir.exists(&quot;data&quot;)) {
+  dir.create(&quot;data&quot;)
+}</code></pre>
+</div>
 <div id="download-the-data" class="section level2">
 <h2>Download the data</h2>
+<p>We will use two tables for this:</p>
+<ol style="list-style-type: decimal">
+<li><p>Table 14: Quarterly Homeownership Rates for the U.S. and Regions: 1964 to Present</p></li>
+<li><p>Table B-5. Margins of Error of Homeownership Rates for the United States</p></li>
+</ol>
+<pre class="r"><code>if (!file.exists(&quot;data/histtab14.xlsx&quot;)) {
+  
+  download.file(url = &quot;https://www.census.gov/housing/hvs/data/histtab14.xlsx&quot;,
+                destfile = &quot;data/histtab14.xlsx&quot;,
+                mode=&quot;wb&quot;)
+  
+}
+
+if (!file.exists(&quot;data/B5.xlsx&quot;)) {
+  
+  download.file(url = &quot;https://www.census.gov/housing/hvs/data/B5.xlsx&quot;,
+                destfile = &quot;data/B5.xlsx&quot;,
+                mode=&quot;wb&quot;)
+  
+}</code></pre>
+</div>
+<div id="read-and-clean" class="section level2">
+<h2>Read and clean</h2>
+<div id="homeownership-rate" class="section level3">
+<h3>Homeownership rate</h3>
+<p>First, read in and clean up the homeownership rate data.</p>
+<pre class="r"><code>rate &lt;- read_excel(&quot;data/histtab14.xlsx&quot;,
+                   skip = 3)
+
+# Get rid of rows of footnotes
+rate &lt;- rate %&gt;% 
+  head(-6)</code></pre>
+<p>The year and region variables share a column. Extract the year bu coercing a new year variable into an integer (this will drop the region names), and fill each region with the correct year.</p>
+<pre class="r"><code>rate1 &lt;- rate %&gt;% 
+  mutate(year = as.integer(`Year and Area`)) %&gt;% 
+  filter(!is.na(`Year and Area`)) %&gt;% 
+  fill(year, .direction = &quot;down&quot;) %&gt;% 
+  filter(str_detect(`Year and Area`, &quot;[:digit:]&quot;) == FALSE) </code></pre>
+<p>There are three years that have revisions, so they are duplicated. Get only the revised estimates- these are listed after the unrevised estimates. Get the second set of estimates, and merge them back onto the master data.</p>
+<pre class="r"><code># Get only second set
+rev &lt;- rate1 %&gt;% 
+  group_by(year) %&gt;% 
+  filter(n() &gt; 5) %&gt;% 
+  mutate(num = row_number()) %&gt;% 
+  filter(num %in% 6:10) %&gt;% 
+  select(-num)
+
+rate2 &lt;- rate1 %&gt;% 
+  filter(!year %in% unique(rev$year)) %&gt;% 
+  bind_rows(rev)
+
+stopifnot(
+  rate2 %&gt;% group_by(year) %&gt;% filter(n() &gt; 5) %&gt;% nrow() == 0
+)
+
+rm(rev)</code></pre>
+<p>Fix the region names.</p>
+<pre class="r"><code>names(rate2) &lt;- c(&quot;region&quot;, &quot;Q1&quot;, &quot;Q2&quot;, &quot;Q3&quot;, &quot;Q4&quot;, &quot;year&quot;)
+
+rate3 &lt;- rate2 %&gt;% 
+  mutate(region = str_remove_all(region, &quot;[:punct:]&quot;))</code></pre>
+<p>Reshape and format a date variables.</p>
+<pre class="r"><code>rate4 &lt;- rate3 %&gt;% 
+  gather(key = &quot;quarter&quot;, value = &quot;horate&quot;, -region, -year) %&gt;% 
+  arrange(region, year, quarter) %&gt;% 
+  mutate(period = paste0(year, quarter))</code></pre>
+</div>
+<div id="margin-of-error" class="section level3">
+<h3>Margin of error</h3>
+</div>
+<div id="combine" class="section level3">
+<h3>Combine</h3>
+</div>
 </div>
 </div>
 
