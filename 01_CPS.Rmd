@@ -30,6 +30,9 @@ options(scipen = 999)
 
 library(tidyverse)
 library(readxl)
+library(urbnthemes)
+
+set_urbn_defaults("print")
 ```
 
 
@@ -102,7 +105,7 @@ The year and region variables share a column. Extract the year bu coercing a new
 
 ```{r fill-year}
 
-rate1 <- rate %>% 
+rate <- rate %>% 
   mutate(year = as.integer(`Year and Area`)) %>% 
   filter(!is.na(`Year and Area`)) %>% 
   fill(year, .direction = "down") %>% 
@@ -115,49 +118,126 @@ There are three years that have revisions, so they are duplicated. Get only the 
 ```{r ho-revise}
 
 # Get only second set
-rev <- rate1 %>% 
+rev <- rate %>% 
   group_by(year) %>% 
   filter(n() > 5) %>% 
   mutate(num = row_number()) %>% 
   filter(num %in% 6:10) %>% 
   select(-num)
 
-rate2 <- rate1 %>% 
+rate <- rate %>% 
   filter(!year %in% unique(rev$year)) %>% 
   bind_rows(rev)
 
 stopifnot(
-  rate2 %>% group_by(year) %>% filter(n() > 5) %>% nrow() == 0
+  rate %>% group_by(year) %>% filter(n() > 5) %>% nrow() == 0
 )
 
 rm(rev)
 
 ```
 
-Fix the region names.
+Fix the region names, reshape, format date variable, convert homeownership rate to percent.
 
 ```{r ho-regnames}
-names(rate2) <- c("region", "Q1", "Q2", "Q3", "Q4", "year")
 
-rate3 <- rate2 %>% 
-  mutate(region = str_remove_all(region, "[:punct:]"))
+names(rate) <- c("region", "Q1", "Q2", "Q3", "Q4", "year")
 
-
-```
-
-Reshape and format a date variables.
-
-```{r ho-reshape}
-
-rate4 <- rate3 %>% 
+rate <- rate %>% 
+  mutate(region = str_remove_all(region, "[:punct:]")) %>% 
   gather(key = "quarter", value = "horate", -region, -year) %>% 
   arrange(region, year, quarter) %>% 
-  mutate(period = paste0(year, quarter))
+  mutate(period = paste0(year, quarter),
+         date = lubridate::yq(period),
+         horate = horate / 100)
 
 ```
 
 ### Margin of error
 
+Repeat a similar process for the margin of error.
+
+```{r read-error}
+
+margin <- read_excel("data/B5.xlsx", skip = 7,
+                     col_names = c("year", "Q1", "Q2", "Q3", "Q4")) %>% 
+  head(-5)
+
+```
+
+Clean up year variable, reshape, format date variable. The margin of error represents the 90 percent confidence interval in percent- divide by 100.
+
+```{r clean-error}
+
+margin <- margin %>% 
+  mutate(year = str_remove_all(year, "[:punct:]")) %>% 
+  gather(key = "quarter", value = "margin_error", -year) %>% 
+  mutate(period = paste0(year, quarter),
+         date = lubridate::yq(period),
+         year = as.integer(year),
+         margin_error = margin_error / 100)
+  
+
+```
 
 ### Combine
 
+Filter only national observations, merge with margin of error. Select only observations after 2000. Create variables that represent the bottom and top of the 90% interval.
+
+Calculate two additional variables- the year-over-year change, and the quarter to quarter change.
+
+```{r combine}
+
+cps <- rate %>% 
+  filter(region == "United States") %>% 
+  left_join(margin, by = c("year", "quarter", "period", "date")) %>% 
+  filter(year >= 2000) %>% 
+  mutate(horate_low = horate - margin_error,
+         horate_high = horate + margin_error,
+         horate_yoy = horate / lag(horate, 4) - 1,
+         horate_mom = horate - lag(horate, 1))
+
+```
+
+
+## Analyze series
+
+Plot the series over time.
+
+```{r time-series}
+
+ggplot(data = cps, mapping = aes(date, horate)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the Current Population Survey/Housing Vacancy Survey")
+
+```
+
+Add error bars.
+```{r plot-error}
+
+ggplot(data = cps, mapping = aes(date, horate)) +
+  geom_errorbar(aes(ymin = horate_low, ymax = horate_high),
+                color = "#6f6f6f") +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the Current Population Survey/Housing Vacancy Survey")
+
+```
+
+Shade the 90% confidence interval.
+
+```{r plot-ribbon}
+ggplot(data = cps, mapping = aes(date, horate)) +
+  geom_ribbon(aes(ymin = horate_low, ymax = horate_high),
+                fill = "#6f6f6f", alpha = .5) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the Current Population Survey/Housing Vacancy Survey")
+```
