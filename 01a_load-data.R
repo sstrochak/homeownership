@@ -106,6 +106,7 @@ cps <- rate %>%
          horate_mom = horate - lag(horate, 1),
          survey = "cps")
 
+rm(margin, rate)
 
 acs <- map_df(2012:2017, ~ mutate(get_acs(geography = "US",
                                           year = .x,
