@@ -169,17 +169,23 @@ ggplot(data = cps, mapping = aes(date, horate)) +
 
 ## Compare
 
-```{r plot-ribbon2}
+```{r plot-ribbon-compare}
 ggplot(data = jointdata, mapping = aes(x = date, y = horate)) +
   geom_ribbon(mapping = aes(ymin = horate_low, ymax = horate_high,
                                         fill = survey), 
-              alpha = .5) +
+              alpha = .2, linetype = 2) +
+  scale_fill_discrete(labels = c("American Community Survey",
+                                 "Current Population Survey/Housing Vacancy Survey")) +
   geom_line(mapping = aes(color = survey)) +
+  scale_color_discrete(labels = c("American Community Survey",
+                                 "Current Population Survey/Housing Vacancy Survey")) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1),
-                     breaks = c(.6, .62, .64, .66, .68),
-                     limits = c(.6, .7)) +
+                     breaks = c(.62, .63, .64, .65, .66, .67, .68, .69, .7),
+                     limits = c(.62, .7)) +
   scale_x_date(breaks = "1 year",
-               labels = scales::date_format("%Y")) +
+               expand = c(0,0),
+               labels = scales::date_format("%Y"),
+               limits = as.Date(c("2005-12-01", "2017-12-01"))) +
   labs(x = NULL, y = "Homeownership rate",
        title = "Homeownership Rate")
 
