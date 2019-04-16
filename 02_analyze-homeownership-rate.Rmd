@@ -1,0 +1,193 @@
+---
+title: ""
+subtitle: ""
+author: ""
+date: "`r format(Sys.time(), '%B %d, %Y %H:%M')`"
+output:
+  html_document:
+    number_sections: false
+    self_contained: TRUE
+    code_folding: show
+    toc: TRUE
+    toc_float: TRUE
+    css: www/web_report.css
+    editor_options:
+      chunk_output_type: console
+---
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato" />
+
+![](www/images/urban-institute-logo.png)
+
+
+```{r rmarkdown-setup, echo = FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+
+options(scipen = 999)
+
+```
+
+# Measuring homeownership with the ACS
+
+## Set up
+
+Load libraries
+
+```{r lib}
+library(tidyverse)
+library(readxl)
+library(urbnthemes)
+library(tidycensus)
+
+set_urbn_defaults("print")
+```
+
+Load in data by sourcing first script.
+
+```{r source-data}
+
+source("01a_load-data.R")
+
+```
+
+## Look at series seperately.
+
+### ACS
+
+#### {.tabset .tabset.fade}
+##### Time series
+
+```{r time-series1}
+
+ggplot(data = acs, mapping = aes(date, horate)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = c(.6, .62, .64, .66, .68),
+                     limits = c(.6, .7)) +
+  scale_x_date(breaks = "1 year",
+               labels = scales::date_format("%Y")) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the American Community Survey")
+
+```
+
+##### Error bars
+
+```{r plot-error1}
+
+ggplot(data = acs, mapping = aes(date, horate)) +
+  geom_errorbar(aes(ymin = horate_low, ymax = horate_high),
+                color = "#6f6f6f") +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = c(.6, .62, .64, .66, .68),
+                     limits = c(.6, .7)) +
+  scale_x_date(breaks = "1 year",
+               labels = scales::date_format("%Y")) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the American Community Survey")
+
+```
+
+##### Ribbon
+
+```{r plot-ribbon1}
+ggplot(data = acs, mapping = aes(date, horate)) +
+  geom_ribbon(aes(ymin = horate_low, ymax = horate_high),
+                fill = "#6f6f6f", alpha = .5) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = c(.6, .62, .64, .66, .68),
+                     limits = c(.6, .7)) +
+  scale_x_date(breaks = "1 year",
+               labels = scales::date_format("%Y")) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the American Community Survey")
+```
+
+
+### CPS
+
+#### {.tabset .tabset.fade}
+##### Time series
+
+```{r time-series2}
+
+ggplot(data = cps, mapping = aes(date, horate)) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = c(.6, .62, .64, .66, .68),
+                     limits = c(.6, .7)) +
+  scale_x_date(breaks = "1 year",
+               labels = scales::date_format("%Y")) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the Current Population Survey/Housing Vacancy Survey")
+
+```
+
+##### Error bars
+
+```{r plot-error2}
+
+ggplot(data = cps, mapping = aes(date, horate)) +
+  geom_errorbar(aes(ymin = horate_low, ymax = horate_high),
+                color = "#6f6f6f") +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = c(.6, .62, .64, .66, .68),
+                     limits = c(.6, .7)) +
+  scale_x_date(breaks = "1 year",
+               labels = scales::date_format("%Y")) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the Current Population Survey/Housing Vacancy Survey")
+
+```
+
+##### Ribbon
+
+```{r plot-ribbon2}
+ggplot(data = cps, mapping = aes(date, horate)) +
+  geom_ribbon(aes(ymin = horate_low, ymax = horate_high),
+                fill = "#6f6f6f", alpha = .5) +
+  geom_line() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = c(.6, .62, .64, .66, .68),
+                     limits = c(.6, .7)) +
+  scale_x_date(breaks = "1 year",
+               labels = scales::date_format("%Y")) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate",
+       subtitle = "As measured by the Current Population Survey/Housing Vacancy Survey")
+```
+
+
+## Compare
+
+```{r plot-ribbon-compare}
+ggplot(data = jointdata, mapping = aes(x = date, y = horate)) +
+  geom_ribbon(mapping = aes(ymin = horate_low, ymax = horate_high,
+                                        fill = survey), 
+              alpha = .2, linetype = 2) +
+  scale_fill_discrete(labels = c("American Community Survey",
+                                 "Current Population Survey/Housing Vacancy Survey")) +
+  geom_line(mapping = aes(color = survey)) +
+  scale_color_discrete(labels = c("American Community Survey",
+                                 "Current Population Survey/Housing Vacancy Survey")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     breaks = c(.62, .63, .64, .65, .66, .67, .68, .69, .7),
+                     limits = c(.62, .7)) +
+  scale_x_date(breaks = "1 year",
+               expand = c(0,0),
+               labels = scales::date_format("%Y"),
+               limits = as.Date(c("2005-12-01", "2017-12-01"))) +
+  labs(x = NULL, y = "Homeownership rate",
+       title = "Homeownership Rate")
+
+ggsave("plots/joint-homeownership-moe.png")
+```
