@@ -184,7 +184,8 @@ margin <- margin %>%
 
 Filter only national observations, merge with margin of error. Select only observations after 2000. Create variables that represent the bottom and top of the 90% interval.
 
-Calculate two additional variables- the year-over-year change, and the quarter to quarter change.
+Calculate two additional variables- the year-over-year change, and the quarter over quarter change.
+
 
 ```{r combine}
 
