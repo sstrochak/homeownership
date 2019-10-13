@@ -183,7 +183,8 @@ Calculate two additional variables- the year-over-year change, and the quarter o
 ```{r combine}
 
 cps <- rate %>% 
-  filter(region == "United States") %>% 
+  filter(region == "United States",
+         !is.na(horate)) %>% 
   left_join(margin, by = c("year", "quarter", "period", "date")) %>% 
   filter(year >= 2000) %>% 
   mutate(horate_low = horate - moe,
@@ -202,7 +203,7 @@ We will use `library(tidycensus)` to get a time series of homeownership rates an
 
 ```{r tidycensus}
 
-acs <- map_df(2012:2017, ~ mutate(get_acs(geography = "US",
+acs <- map_df(2012:2018, ~ mutate(get_acs(geography = "US",
                                  year = .x,
                                  survey = "acs1",
                                  variable = "B25003_002",
@@ -231,7 +232,7 @@ acs <- acs %>%
   fill(GEOID, NAME, variable) %>% 
   arrange(year)
 
-write_csv(acs, "data/acs-horate_20052017.csv")
+write_csv(acs, "data/acs-horate_20052018.csv")
 ```
 
 ## Combine CPS and ACS
