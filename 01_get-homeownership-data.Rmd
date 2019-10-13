@@ -192,7 +192,10 @@ cps <- rate %>%
          horate_yoy = horate / lag(horate, 4) - 1,
          horate_mom = horate - lag(horate, 1))
 
-write_csv(cps, "data/cps-horate_20002017.csv")
+maxq <- max(cps$date)
+
+write_csv(cps, 
+          str_glue("data/cps-horate_2000_{maxq}.csv"))
 
 ```
 
@@ -224,6 +227,8 @@ acs <- acs %>%
 ))
 
 
+maxyear <- max(acs$year)
+
 acs <- acs %>% 
   mutate(date = as.Date(paste0(year, "-12-01")),
          horate = estimate / summary_est,
@@ -232,7 +237,8 @@ acs <- acs %>%
   fill(GEOID, NAME, variable) %>% 
   arrange(year)
 
-write_csv(acs, "data/acs-horate_20052018.csv")
+write_csv(acs, 
+          str_glue("data/acs-horate_2005{maxyear}.csv"))
 ```
 
 ## Combine CPS and ACS
@@ -242,10 +248,12 @@ Make a joint data set for plotting.
 ```{r cps-acs}
 
 jointdata <- acs %>% 
-  select(year, date,
+  mutate(survey = "ACS") %>% 
+  select(year, date, survey,
          horate, horate_low, horate_high) %>% 
-  bind_rows(select(cps, year,
-                        horate, horate_low, horate_high))
+  bind_rows(select(cps, year, date, 
+                        horate, horate_low, horate_high) %>% 
+              mutate(survey = "CPS"))
 
 write_csv(jointdata, "data/cps-acs-horate.csv")
 
