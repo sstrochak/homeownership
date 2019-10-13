@@ -175,7 +175,8 @@ ggplot(data = cps, mapping = aes(date, horate)) +
 ## Compare
 
 ```{r plot-ribbon-compare}
-ggplot(data = jointdata, mapping = aes(x = date, y = horate)) +
+
+compare <- ggplot(data = jointdata, mapping = aes(x = date, y = horate)) +
   geom_ribbon(mapping = aes(ymin = horate_low, ymax = horate_high,
                                         fill = survey), 
               alpha = .2, linetype = 2) +
@@ -191,9 +192,21 @@ ggplot(data = jointdata, mapping = aes(x = date, y = horate)) +
                expand = c(0,0),
                labels = scales::date_format("%Y"),
                limits = as.Date(c("2005-12-01", "2019-05-01"))) +
-  labs(x = NULL, y = "Homeownership rate",
-       title = "Homeownership Rate")
+  labs(x = NULL, y = NULL)
+
+p1 <- urbn_plot(urbn_title("Two Measures of the Homeownership Rate"),
+                get_legend(compare),
+                urbn_y_title("Homeownership rate"),
+                remove_legend(compare),
+                urbn_source("American Community Survey and Current Population Survey/Housing Vacancy Survey."),
+                urbn_logo_text(),
+                heights = c(0.06, 0.06, 0.02, 1, 0.05, 0.05))
+
 
 ggsave("plots/joint-homeownership-moe.png",
+       plot = p1,
        width = 6.5, height = 5)
+
+knitr::include_graphics("plots/joint-homeownership-moe.png")
+
 ```
