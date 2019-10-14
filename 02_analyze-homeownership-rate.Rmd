@@ -28,7 +28,7 @@ options(scipen = 999)
 
 ```
 
-# Measuring homeownership with the ACS
+# Measuring homeownership with the ACS and the CPS
 
 ## Set up
 
@@ -36,9 +36,7 @@ Load libraries
 
 ```{r lib}
 library(tidyverse)
-library(readxl)
 library(urbnthemes)
-library(tidycensus)
 
 set_urbn_defaults("print")
 ```
@@ -207,6 +205,5 @@ ggsave("plots/joint-homeownership-moe.png",
        plot = p1,
        width = 6.5, height = 5)
 
-knitr::include_graphics("plots/joint-homeownership-moe.png")
 
 ```
