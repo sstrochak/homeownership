@@ -2,6 +2,8 @@ library(tidyverse)
 library(urbnthemes)
 library(lubridate)
 
+set_urbn_defaults(style = "print")
+
 cps <- read_csv("data/cps-horate_2000_2019-04-01.csv")
 
 sample <- cps %>% 
@@ -27,6 +29,9 @@ howtoread <- ggplot(data = sample, mapping = aes(date, horate)) +
            color = "#1696d2")+
   geom_line(data = sample, mapping = aes(date, horatemin_line),
             linetype = 2) +
+  annotate(geom = "text", x = ymd("2017-12-01"), y = mean(sample$horatemin_line) - 0.0015,
+           label = "This is the lower bound of the 90% confidence interval",
+           color = "#1696d2") +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1),
                      breaks = c(.62, .63, .64, .65, .66),
                      limits = c(.62, .66)) +
