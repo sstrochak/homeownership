@@ -4,7 +4,7 @@ library(lubridate)
 
 set_urbn_defaults(style = "print")
 
-cps <- read_csv("data/cps-horate_2000_2019-04-01.csv")
+cps <- read_csv("data/cps-horate_2000_2019-07-01.csv")
 
 sample <- cps %>% 
   filter(year >= 2015) %>% 
@@ -20,7 +20,7 @@ howtoread <- ggplot(data = sample, mapping = aes(date, horate)) +
               alpha = 0.23,
               fill = "#6f6f6f") +
   annotate(geom = "rect",
-           xmin = ymd("2019-04-01"), xmax = ymd("2020-02-01"),
+           xmin = ymd("2019-07-01"), xmax = ymd("2020-06-01"),
            ymin = 0.619, ymax = 0.66,
            fill = "white", color = NA) +
   geom_ribbon(aes(ymin = horate_low, ymax = horate_high, fill = region),
@@ -40,7 +40,7 @@ howtoread <- ggplot(data = sample, mapping = aes(date, horate)) +
            color = "#6f6f6f")+
   geom_line(data = sample, mapping = aes(date, horatemin_line),
             linetype = 2, color = "#6f6f6f", alpha = 0.5) +
-  annotate(geom = "text", x = ymd("2017-12-01"), y = mean(sample$horatemin_line) - 0.0015,
+  annotate(geom = "text", x = ymd("2016-12-01"), y = mean(sample$horatemin_line) - 0.0015,
            label = "90% confidence interval lower bound",
            color = "#6f6f6f") +
   geom_point(data = filter(sample, date == max(sample$date)),
@@ -49,9 +49,9 @@ howtoread <- ggplot(data = sample, mapping = aes(date, horate)) +
   geom_point(data = filter(sample, date == max(sample$date)),
              mapping = aes(x = date, y = horatemin_line),
              color = "black", alpha = 0.5, size = 2) +
-  annotate(geom = "text", x = ymd("2019-04-14"),
+  annotate(geom = "text", x = ymd("2019-07-14"),
            y = rate,
-           label = "The value for\nthe 2nd quarter of\n 2019 is in this \n range",
+           label = "The value for\nthe 3rd quarter of\n 2019 is in this \n range",
            size = 3,
            hjust = 0) +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1),
@@ -63,7 +63,7 @@ howtoread <- ggplot(data = sample, mapping = aes(date, horate)) +
                           ymd("2019-01-01")),
                labels = scales::date_format("%Y"),
                expand = c(0, 0),
-               limits = c(ymd("2015-01-01"), ymd("2020-02-01"))) +
+               limits = c(ymd("2015-01-01"), ymd("2020-06-01"))) +
   labs(x = NULL, y = NULL)
 
 p <- urbn_plot(urbn_title("How To Read This Graph"),

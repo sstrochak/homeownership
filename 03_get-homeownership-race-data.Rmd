@@ -1,0 +1,268 @@
+---
+title: ""
+subtitle: ""
+author: ""
+date: "`r format(Sys.time(), '%B %d, %Y %H:%M')`"
+output:
+  html_document:
+    number_sections: false
+    self_contained: TRUE
+    code_folding: show
+    toc: TRUE
+    toc_float: TRUE
+    css: www/web_report.css
+    editor_options:
+      chunk_output_type: console
+---
+
+```{r rmarkdown-setup, echo = FALSE}
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+
+# Homeownership data
+
+## Set up
+
+Load libraries
+
+```{r setup}
+options(scipen = 999)
+
+library(tidyverse)
+library(readxl)
+library(urbnthemes)
+library(tidycensus)
+
+set_urbn_defaults("print")
+```
+
+Create directories for data.
+```{r data}
+if (!dir.exists("data")) {
+  dir.create("data")
+}
+
+```
+
+## Download and clean CPS data
+
+### Download
+
+We will use two tables for this:
+
+1. Table 14: Quarterly Homeownership Rates for the U.S. and Regions: 1964 to Present
+
+2. Table B-5. Margins of Error of Homeownership Rates for the United States
+
+
+```{r download}
+if (!file.exists("data/histtab16.xlsx")) {
+  
+  download.file(url = "https://www.census.gov/housing/hvs/data/histtab16.xlsx",
+                destfile = "data/histtab16.xlsx",
+                mode="wb")
+  
+}
+
+if (!file.exists("data/B8.xlsx")) {
+  
+  download.file(url = "https://www.census.gov/housing/hvs/data/B8.xlsx",
+                destfile = "data/B8.xlsx",
+                mode="wb")
+  
+}
+
+
+```
+
+### Read and clean
+
+#### Homeownership rate
+
+First, read in and clean up the homeownership rate data.
+
+```{r horead}
+
+rate <- read_excel("data/histtab16.xlsx",
+                   skip = 3)
+
+# Get rid of rows of footnotes
+rate <- rate %>% 
+  head(-8)
+
+```
+
+The year and region variables share a column. Extract the year bu coercing a new year variable into an integer and fill each region with the correct year.
+
+```{r fill-year}
+
+rate1 <- rate %>% 
+  rename(asian = ...6) %>% 
+  mutate(year = as.integer(str_sub(`Year and         Quarter`, 1, 4))) %>% 
+  filter(!is.na(`Year and         Quarter`)) %>% 
+  fill(year, .direction = "down") %>% 
+  filter(!is.na(`U.S.`)) %>% 
+  mutate(quarter = paste0("Q", str_sub(`Year and         Quarter`, 1, 1)),
+         period = paste0(year, quarter),
+         date = lubridate::yq(period)) %>% 
+  mutate(region = "United States") %>% 
+  select(region, year, quarter, period, date,
+         total = `U.S.`,
+         white = `Non-Hispanic White Alone`,
+         black = `Black Alone`,
+         asian,
+         all_other = `All Other Races`,
+         hispanic = `Hispanic (of any race)`) %>% 
+  gather(key = "race", value = "horate", 
+         -c(region, year, quarter, period, date)) %>% 
+  mutate(horate = as.numeric(horate) / 100)
+  
+  
+
+stopifnot(rate1 %>% 
+            group_by(year, race) %>% 
+            count() %>% 
+            filter(n > 5) %>% 
+            nrow() == 0)
+
+stopifnot(rate1 %>% 
+            group_by(year, race) %>% 
+            count() %>% 
+            filter(n < 4) %>% 
+            nrow() != 1)
+
+```
+
+
+
+#### Margin of error
+
+Repeat a similar process for the margin of error.
+
+```{r read-error}
+
+margin <- read_excel("data/B8.xlsx", skip = 5) %>% 
+  head(-11)
+
+names(margin) <- c("quarter", "white", "black", "all_other", "asian", "hispanic")
+
+```
+
+Clean up year variable, reshape, format date variable. The margin of error represents the 90 percent confidence interval in percent- divide by 100.
+
+```{r clean-error}
+
+margin1 <- margin %>% 
+  mutate(year = as.integer(quarter)) %>% 
+  fill(year, .direction = "down") %>% 
+  filter(!is.na(white)) %>% 
+  mutate(quarter1 = str_remove_all(quarter, "[:punct:]"),
+         quarter = case_when(quarter1 == "First Quarter" ~ "Q1",
+                             quarter1 == "Second Quarter" ~ "Q2",
+                             quarter1 == "Third Quarter" ~ "Q3",
+                             quarter1 == "Fourth Quarter" ~ "Q4"),
+         period = paste0(year, quarter),
+         date = lubridate::yq(period),
+         asian = ifelse(asian == "(X)",
+                        NA,
+                        asian),
+         region = "United States") %>% 
+  select(region, year, quarter, period, date,
+         white, black, all_other, asian, hispanic) %>% 
+  gather(key = "race", value = "moe",
+         -c(region, year, quarter, period, date)) %>% 
+  mutate(moe = as.numeric(moe) / 100)
+  
+
+```
+
+### Combine
+
+Filter only national observations, merge with margin of error. Select only observations after 2000. Create variables that represent the bottom and top of the 90% interval.
+
+Calculate two additional variables- the year-over-year change, and the quarter over quarter change.
+
+
+```{r combine}
+
+cps_race <- rate1 %>% 
+  left_join(margin1, by = c("year", "quarter", "period", "date", "race", "region")) %>% 
+  filter(year >= 2010) %>% 
+  mutate(horate_low = horate - moe,
+         horate_high = horate + moe,
+         horate_yoy = horate / lag(horate, 4) - 1,
+         horate_mom = horate - lag(horate, 1))
+
+
+```
+
+
+## Download and clean the ACS
+
+We will use `library(tidycensus)` to get a time series of homeownership rates and margins of error. The census API is not available for prior years- hard code the other years from [American Fact Finder](https://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?pid=ACS_17_1YR_B25003&prodType=table)
+
+```{r tidycensus}
+
+acs <- map_df(2012:2018, ~ mutate(get_acs(geography = "US",
+                                 year = .x,
+                                 survey = "acs1",
+                                 variable = "B25003_002",
+                                 summary_var = "B25003_001"),
+                                 year = .x,
+                                 race = "total")) %>% 
+  rbind(map_df(2012:2018, ~ mutate(get_acs(geography = "US",
+                                 year = .x,
+                                 survey = "acs1",
+                                 variable = "B25003B_002",
+                                 summary_var = "B25003B_001"),
+                                 year = .x,
+                                 race = "black")))
+
+# Hard code estimates from other years from fact finder
+acs <- acs %>% 
+  bind_rows(tribble(
+  ~year, ~estimate, ~moe, ~summary_est, ~summary_moe, ~race,
+  2010, 74873372,	216091, 114567419, 163249, "total",
+  2011, 74264435,	230440, 114991725, 179541, "total"
+)) %>% 
+  bind_rows(tribble(
+  ~year, ~estimate, ~moe, ~summary_est, ~summary_moe, ~race,
+  2010, 6070627,	39146, 13738492, 41846, "black",
+  2011, 5977100,	35414, 14051208, 33702, "black"
+))
+  
+
+
+maxyear <- max(acs$year)
+
+acs <- acs %>% 
+  mutate(date = as.Date(paste0(year, "-12-01")),
+         horate = estimate / summary_est,
+         horate_low = (estimate - moe) / summary_est,
+         horate_high = (estimate + moe) / summary_est) %>% 
+  fill(GEOID, NAME, variable) %>% 
+  arrange(year)
+
+```
+
+## Combine CPS and ACS
+
+Make a joint data set for plotting.
+
+```{r cps-acs}
+
+jointdata <- acs %>% 
+  mutate(survey = "ACS") %>% 
+  select(year, date, survey, race,
+         horate, horate_low, horate_high) %>% 
+  bind_rows(select(cps_race, year, date, race,
+                        horate, horate_low, horate_high) %>% 
+              mutate(survey = "CPS")) %>% 
+  filter(race == "black")
+
+write_csv(jointdata, "data/cps-acs-horate_black.csv")
+
+```
+

@@ -54,3 +54,5 @@ rsconnect/
 # archived files
 archive/
 
+# blog stuff
+blog/

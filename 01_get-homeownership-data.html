@@ -382,7 +382,10 @@ rate &lt;- rate %&gt;%
          horate_yoy = horate / lag(horate, 4) - 1,
          horate_mom = horate - lag(horate, 1))
 
-write_csv(cps, &quot;data/cps-horate_20002017.csv&quot;)</code></pre>
+maxq &lt;- max(cps$date)
+
+write_csv(cps, 
+          str_glue(&quot;data/cps-horate_2000_{maxq}.csv&quot;))</code></pre>
 </div>
 </div>
 <div id="download-and-clean-the-acs" class="section level2">
@@ -409,6 +412,8 @@ acs &lt;- acs %&gt;%
 ))
 
 
+maxyear &lt;- max(acs$year)
+
 acs &lt;- acs %&gt;% 
   mutate(date = as.Date(paste0(year, &quot;-12-01&quot;)),
          horate = estimate / summary_est,
@@ -417,16 +422,19 @@ acs &lt;- acs %&gt;%
   fill(GEOID, NAME, variable) %&gt;% 
   arrange(year)
 
-write_csv(acs, &quot;data/acs-horate_20052018.csv&quot;)</code></pre>
+write_csv(acs, 
+          str_glue(&quot;data/acs-horate_2005{maxyear}.csv&quot;))</code></pre>
 </div>
 <div id="combine-cps-and-acs" class="section level2">
 <h2>Combine CPS and ACS</h2>
 <p>Make a joint data set for plotting.</p>
 <pre class="r"><code>jointdata &lt;- acs %&gt;% 
-  select(year, date,
+  mutate(survey = &quot;ACS&quot;) %&gt;% 
+  select(year, date, survey,
          horate, horate_low, horate_high) %&gt;% 
-  bind_rows(select(cps, year,
-                        horate, horate_low, horate_high))
+  bind_rows(select(cps, year, date, 
+                        horate, horate_low, horate_high) %&gt;% 
+              mutate(survey = &quot;CPS&quot;))
 
 write_csv(jointdata, &quot;data/cps-acs-horate.csv&quot;)</code></pre>
 </div>
