@@ -191,7 +191,7 @@ compare <- ggplot(data = jointdata, mapping = aes(x = date, y = horate)) +
   scale_x_date(breaks = "1 year",
                expand = c(0,0),
                labels = scales::date_format("%Y"),
-               limits = as.Date(c("2005-12-01", "2019-08-01"))) +
+               limits = as.Date(c("2005-12-01", "2019-11-01"))) +
   labs(x = NULL, y = NULL)
 
 p1 <- urbn_plot(urbn_title("Two Measures of the Homeownership Rate"),
@@ -212,7 +212,7 @@ ggsave("plots/joint-homeownership-moe.png",
 
 ### Black households
 
-```{r plot-ribbon-compare}
+```{r plot-ribbon-compare-black}
 
 bdata <- read_csv("data/cps-acs-horate_black.csv")
 
@@ -232,7 +232,7 @@ compare <- ggplot(data = bdata, mapping = aes(x = date, y = horate)) +
   scale_x_date(breaks = "1 year",
                expand = c(0,0),
                labels = scales::date_format("%Y"),
-               limits = as.Date(c("2010-11-01", "2019-08-01"))) +
+               limits = as.Date(c("2010-11-01", "2019-11-01"))) +
   labs(x = NULL, y = NULL)
 
 p1 <- urbn_plot(urbn_title("Volatility in the Black Homeownership Rate"),
