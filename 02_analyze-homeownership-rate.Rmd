@@ -194,13 +194,14 @@ compare <- ggplot(data = jointdata, mapping = aes(x = date, y = horate)) +
                limits = as.Date(c("2005-12-01", "2019-11-01"))) +
   labs(x = NULL, y = NULL)
 
-p1 <- urbn_plot(urbn_title("Two Measures of the Homeownership Rate"),
+p1 <- urbn_plot(urbn_title("Two Measures of the US Homeownership Rate"),
                 get_legend(compare),
                 urbn_y_title("Homeownership rate"),
                 remove_legend(compare),
-                urbn_source("American Community Survey and Current Population Survey/Housing Vacancy Survey."),
+                urbn_source("US Census Bureau’s American Community Survey and Housing Vacancy Survey."),
+                urbn_note("Data for Housing Vacancy Survey are quarterly."),
                 urbn_logo_text(),
-                heights = c(0.06, 0.06, 0.02, 1, 0.05, 0.05))
+                heights = c(0.06, 0.06, 0.02, 1, 0.035, 0.035, 0.05))
 
 
 ggsave("plots/joint-homeownership-moe.png",
