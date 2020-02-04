@@ -4,7 +4,10 @@ library(lubridate)
 
 set_urbn_defaults(style = "print")
 
-cps <- read_csv("data/cps-horate_2000_2019-10-01.csv")
+cps <- read_csv("data/cps-horate_2000_2019-10-01.csv") %>% 
+  mutate(year_label = ifelse(quarter == "Q1",
+                             year,
+                             ""))
 
 sample <- cps %>% 
   filter(year >= 2015) %>% 
@@ -15,6 +18,12 @@ rate <- sample %>%
   filter(date == max(.$date)) %>% 
   pull(horate)
 
+breaks <- sample %>% 
+  pull(date)
+
+labels <- sample %>% 
+  pull(year_label)
+
 howtoread <- ggplot(data = sample, mapping = aes(date, horate)) +
   geom_ribbon(aes(ymin = horatemin_line, ymax = horatemax_line),
               alpha = 0.23,
@@ -24,9 +33,9 @@ howtoread <- ggplot(data = sample, mapping = aes(date, horate)) +
            ymin = 0.619, ymax = 0.66,
            fill = "white", color = NA) +
   geom_ribbon(aes(ymin = horate_low, ymax = horate_high, fill = region),
-              alpha = .5,
+              alpha = .35,
               show.legend = TRUE) +
-  scale_fill_manual(values = "#6f6f6f",
+  scale_fill_manual(values = "#1696d2",
                     labels = "90% confidence interval") +
   geom_line(aes(color = region),
             size = 1.2) +
@@ -63,10 +72,8 @@ howtoread <- ggplot(data = sample, mapping = aes(date, horate)) +
                      breaks = c(.62, .63, .64, .65, .66),
                      limits = c(.617, .66),
                      expand = c(0,0)) +
-  scale_x_date(breaks = c(ymd("2015-01-01"), ymd("2016-01-01"),
-                          ymd("2017-01-01"), ymd("2018-01-01"),
-                          ymd("2019-01-01")),
-               labels = scales::date_format("%Y"),
+  scale_x_date(breaks = breaks,
+               labels = labels,
                expand = c(0, 0),
                limits = c(ymd("2015-01-01"), ymd("2020-09-01"))) +
   labs(x = NULL, y = NULL)
